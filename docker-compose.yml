@@ -1,0 +1,44 @@
+services:
+  # local MongoDB. Start only the database with: docker compose up -d database
+  database:
+    image: mongo:8
+    environment:
+      - MONGO_INITDB_DATABASE=crm
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=verysecretpassword
+    restart: on-failure
+    volumes:
+      - ./mongo-data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      # put orders.dump here to restore it from inside the container (see README)
+      - ./dumps:/dumps:ro
+    ports:
+      - "27017:27017"
+
+  app:
+    build:
+      context: .
+    ports:
+      # localhost only (for Postman), the public entry point is the web service
+      - "127.0.0.1:5000:5000"
+    env_file:
+      - ./app/.env
+    environment:
+      # inside the compose network mongo is reachable by its service name, not localhost
+      - MONGO_URI=mongodb://admin:verysecretpassword@database:27017/crm?authSource=admin
+      - PORT=5000
+      - FRONTEND_URL=http://localhost:5173
+      # requests come through nginx in the web service
+      - TRUST_PROXY=1
+    depends_on:
+      - database
+    restart: on-failure
+
+  web:
+    build:
+      context: ./web
+    ports:
+      - "5173:80"
+    depends_on:
+      - app
+    restart: on-failure

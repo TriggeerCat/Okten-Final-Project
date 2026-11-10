@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+mongo-data
+
+.idea/workspace.xml
+.idea/shelf
+dumps/*
+!dumps/.gitkeep
