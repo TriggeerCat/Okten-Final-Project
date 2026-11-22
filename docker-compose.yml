@@ -10,8 +10,6 @@ services:
     volumes:
       - ./mongo-data:/data/db
       - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
-      # put orders.dump here to restore it from inside the container (see README)
-      - ./dumps:/dumps:ro
     ports:
       - "27017:27017"
 

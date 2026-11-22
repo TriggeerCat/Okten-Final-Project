@@ -35,21 +35,37 @@ cp app/.env.example app/.env
 
 ### 2. Database
 
-Start only MongoDB in Docker:
+Use either a MongoDB Atlas cluster (required by the spec) or a local MongoDB in Docker for development.
+
+**Option A: MongoDB Atlas (cloud)**
+
+1. Create a free cluster at https://cloud.mongodb.com.
+2. Under **Database Access**, add a database user with a password.
+3. Under **Network Access**, allow your IP address. Use `0.0.0.0/0` if the whole team needs access.
+4. Click **Connect → Drivers** and copy the connection string. Add the database name `crm` before the `?`:
+   `mongodb+srv://<user>:<password>@<cluster>.mongodb.net/crm?retryWrites=true&w=majority`
+5. Put it into `MONGO_URI` in `app/.env`.
+
+**Option B: local MongoDB in Docker**
 
 ```bash
 docker compose up -d database
 ```
 
-It listens on `localhost:27017` (user `admin`, password `verysecretpassword`, database `crm`). Data is kept in `./mongo-data`.
+It listens on `localhost:27017` (user `admin`, password `verysecretpassword`, database `crm`). Data is kept in `./mongo-data`. The default `MONGO_URI` in `app/.env.example` points here.
 
-Restore the orders dump (https://github.com/OktenSchool/dumps/blob/main/final/orders.dump): put `orders.dump` into `./dumps`, then:
+**Import the orders dump** (works with both options, uses `MONGO_URI` from `app/.env`):
+
+1. Download [orders.dump](https://raw.githubusercontent.com/OktenSchool/dumps/main/final/orders.dump) into the `dumps/` folder (the file is git-ignored).
+2. Run:
 
 ```bash
-docker compose exec database mongorestore --username admin --password verysecretpassword --authenticationDatabase admin --nsInclude "*.orders" --nsFrom "*.orders" --nsTo "crm.orders" --archive=/dumps/orders.dump
+cd app
+npm install
+npm run import:orders
 ```
 
-If the file is not an archive (mongorestore reports an error), try adding `--gzip`, or restore a folder dump with `mongorestore ... /dumps/<folder>`.
+The dump is a mongosh script, not a `mongorestore` archive, and its records have no numeric `id`. The import script parses it and assigns ids `1..500` in date order. It also renames `already_paid` to `alreadyPaid`, turns empty strings into `null` and stores `created_at` as a date. It refuses to import into a non-empty `orders` collection. To replace existing orders, run `npm run import:orders -- --drop`.
 
 ### 3. Run locally (dev)
 
@@ -75,6 +91,8 @@ docker compose up --build
 
 Frontend: http://localhost:5173. API (for Postman): http://localhost:5000.
 
+In Docker the API connects to the `database` container: `docker-compose.yml` overrides `MONGO_URI` from `app/.env`. To run the Docker API against Atlas, change `MONGO_URI` under `app.environment` in `docker-compose.yml`.
+
 ## API
 
 | Method | Path | Auth | Description |
@@ -93,5 +111,4 @@ Frontend: http://localhost:5173. API (for Postman): http://localhost:5000.
 - [ ] Edit modal and groups (section 7)
 - [ ] Admin panel: statistics, create manager, ban/unban (section 10)
 - [ ] Activate / recovery password links (section 11)
-- [ ] Paginator with the 4 visual modes (section 4.1)
 - [ ] Postman collection, API docs

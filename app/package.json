@@ -6,6 +6,7 @@
     "dev": "rimraf dist && tsc-watch --onSuccess \"node dist/main.js\"",
     "build": "rimraf dist && tsc",
     "start": "node dist/main.js",
+    "import:orders": "tsc && node dist/scripts/import-orders.js",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "typecheck": "tsc --noEmit"

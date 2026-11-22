@@ -1,7 +1,9 @@
+import { useEffect } from "react";
 import { useSearchParams } from "react-router";
 import { toQuery, useApi } from "../api";
 import type { Order, Paginated } from "../types";
-import { Alert, Button, Loading } from "../components/ui";
+import { Alert, Loading } from "../components/ui";
+import { Paginator } from "../components/Paginator";
 
 const COLUMNS: (keyof Order)[] = [
     "id",
@@ -28,13 +30,22 @@ const formatCell = (order: Order, column: keyof Order) => {
     return String(value);
 };
 
-// base version: table + ?page + ?order. TODO: filters, expandable rows, comments, edit modal, excel
+// table + paginator + ?page + ?order. TODO: filters, expandable rows, comments, edit modal, excel
 export function OrdersPage() {
     const [searchParams, setSearchParams] = useSearchParams();
-    const page = Number(searchParams.get("page")) || 1;
+    const page = Math.max(1, Math.floor(Number(searchParams.get("page"))) || 1);
     const order = searchParams.get("order") ?? "-id";
 
     const { data, error, loading } = useApi<Paginated<Order>>(`/orders${toQuery({ page, order })}`);
+
+    // a link to a page past the end (e.g. after filtering) opens the last page instead of an empty table
+    useEffect(() => {
+        if (data && page > data.totalPages) {
+            const next = new URLSearchParams(searchParams);
+            next.set("page", String(data.totalPages));
+            setSearchParams(next, { replace: true });
+        }
+    }, [data, page, searchParams, setSearchParams]);
 
     const setParam = (key: string, value: string | number) => {
         const next = new URLSearchParams(searchParams);
@@ -87,23 +98,8 @@ export function OrdersPage() {
                 )}
             </div>
 
-            {/* TODO: paginator with the 4 visual modes from section 4.1 */}
             {data && (
-                <div className="flex items-center justify-center gap-2">
-                    <Button variant="secondary" disabled={page <= 1} onClick={() => setParam("page", page - 1)}>
-                        Prev
-                    </Button>
-                    <span className="text-sm">
-                        {data.page} / {data.totalPages}
-                    </span>
-                    <Button
-                        variant="secondary"
-                        disabled={page >= data.totalPages}
-                        onClick={() => setParam("page", page + 1)}
-                    >
-                        Next
-                    </Button>
-                </div>
+                <Paginator page={data.page} totalPages={data.totalPages} onChange={(p) => setParam("page", p)} />
             )}
         </div>
     );

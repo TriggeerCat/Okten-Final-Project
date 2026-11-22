@@ -6,7 +6,8 @@ import { COURSE_FORMATS, COURSE_TYPES, COURSES, ORDER_STATUSES } from "./enums/o
 // null is allowed everywhere because the dump has empty fields
 const OrderSchema = new Schema(
     {
-        id: { type: Number, index: true },
+        // the dump has no ids, they are assigned by the import script (npm run import:orders)
+        id: { type: Number, unique: true, sparse: true },
         name: { type: String, default: null },
         surname: { type: String, default: null },
         email: { type: String, default: null },
