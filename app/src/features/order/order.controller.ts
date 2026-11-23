@@ -6,7 +6,8 @@ import { IOrderListQuery } from "./order.validator";
 
 class OrderController {
     public async getList(req: Request, res: Response<any, ILocalsTokenQuery<IOrderListQuery>>) {
-        res.json(await orderService.getList(res.locals.validQuery));
+        const { validQuery, tokenPayload } = res.locals;
+        res.json(await orderService.getList(validQuery, tokenPayload.userId));
     }
 }
 

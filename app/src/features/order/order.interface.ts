@@ -1,3 +1,5 @@
+import { Types } from "mongoose";
+
 import { Course, CourseFormat, CourseType, OrderStatus } from "./enums/order.enum";
 
 // field names follow the OktenSchool dump (orders.dump / orders.sql)
@@ -18,6 +20,12 @@ export interface IOrder {
     created_at: Date;
     utm: string | null;
     msg: string | null;
-    manager: string | null;
-    group: string | null;
+    manager: Types.ObjectId | null;
+    group: Types.ObjectId | null;
+}
+
+// what GET /orders returns: manager and group are populated
+export interface IOrderListItem extends Omit<IOrder, "manager" | "group"> {
+    manager: { _id: Types.ObjectId; name: string; surname: string } | null;
+    group: { _id: Types.ObjectId; name: string } | null;
 }

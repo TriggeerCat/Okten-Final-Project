@@ -102,11 +102,25 @@ In Docker the API connects to the `database` container: `docker-compose.yml` ove
 | POST | `/auth/refresh` | – | `{ refreshToken }` → new token pair (refresh tokens are single use) |
 | POST | `/auth/sign-out` | Bearer | Removes the current token pair |
 | GET | `/auth/me` | Bearer | Current user |
-| GET | `/orders?page=1&order=-id` | Bearer | Orders, 25 per page, sorted by `order` (`-` = DESC) |
+| GET | `/orders?page=1&order=-id` | Bearer | Orders, 25 per page, sorted by `order` (`-` = DESC), with optional filters (below) |
+
+`GET /orders` filters (all optional, combined with AND; an empty value such as `?name=` is ignored):
+
+| Param | Match |
+|---|---|
+| `name`, `surname`, `email`, `phone` | Substring, case-insensitive (`?name=ол` finds Олег, Олена, Володимир) |
+| `age` | Exact number |
+| `course`, `course_format`, `course_type` | Exact value from the allowed lists |
+| `status` | Exact value; `New` also matches orders with no status |
+| `group` | Group name, case-insensitive; an unknown group returns no orders |
+| `start_date`, `end_date` | `YYYY-MM-DD`, both inclusive, compared in UTC |
+| `my` | `true` → only orders assigned to the current user |
+
+In responses, `manager` is `{ _id, name, surname }` and `group` is `{ _id, name }` (or `null`). Sorting by `manager` sorts by surname, by `group` by group name.
 
 ## TODO
 
-- [ ] Order filters (section 8) and Excel export
+- [ ] Excel export (filters from section 8 are done on the backend)
 - [ ] Expandable order row, comments, take order in work (section 6)
 - [ ] Edit modal and groups (section 7)
 - [ ] Admin panel: statistics, create manager, ban/unban (section 10)

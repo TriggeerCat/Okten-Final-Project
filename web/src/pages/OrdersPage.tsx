@@ -27,6 +27,9 @@ const formatCell = (order: Order, column: keyof Order) => {
     const value = order[column];
     if (value === null || value === undefined) return "null";
     if (column === "created_at") return new Date(String(value)).toLocaleDateString("uk-UA");
+    // section 5: the manager column shows the manager's surname
+    if (column === "manager") return order.manager?.surname ?? "null";
+    if (column === "group") return order.group?.name ?? "null";
     return String(value);
 };
 

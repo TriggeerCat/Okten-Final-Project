@@ -37,6 +37,13 @@ Status and remaining work, compared against the spec (`TZ-CRM-School.pdf`). One 
   - [ ] Run the import and click through the app (blocked on Docker / Atlas)
   - Decision for day 2: the dump has no `manager` / `group` data, so they can be stored as refs (user id / group id) from the start
 - [ ] **Day 2 — Backend filters (§8).** All 12 filter fields: text fields match anywhere, case-insensitive; enum filters, age, start/end date range, `my=true`. Decide how `manager` and `group` are stored (strings from the dump vs. refs to users / groups). Add indexes.
+  - [x] `manager` → ref to `users`, `group` → ref to the new `groups` collection (name unique, case-insensitive); `GET /orders` returns them populated
+  - [x] All 12 filters + `my` in `GET /orders` (validated with zod; bad values → 400); `status=New` also matches `null`; regex input is escaped
+  - [x] Sorting by `manager` / `group` sorts by surname / group name
+  - [x] Indexes: `created_at`, `manager + id`, `group`, `status`, `course`
+  - [x] `orderService.buildFilter` is shared, ready for the Excel export (day 4)
+  - [x] Frontend table shows manager surname / group name
+  - [ ] Test against a real database (blocked on Docker / Atlas)
 - [ ] **Day 3 — Frontend filter panel.** Debounced text inputs, dropdowns, date pickers, all synced to the URL. My checkbox, reset button, refresh button.
 - [ ] **Day 4 — Groups and Excel.** List groups, add group with a unique name. Excel export respecting current filters; authenticated download button.
 - [ ] **Day 5 — Backend editing rules (§6–7).** Comments (author, date, text). Shared ownership check: only the assigned manager, or anyone if unassigned, may change an order. A comment assigns the manager and sets status to In work if it was null / New. Edit endpoint with validation; status New frees the order.

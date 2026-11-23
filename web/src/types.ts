@@ -46,6 +46,6 @@ export interface Order {
     created_at: string;
     utm: string | null;
     msg: string | null;
-    manager: string | null;
-    group: string | null;
+    manager: { _id: string; name: string; surname: string } | null;
+    group: { _id: string; name: string } | null;
 }

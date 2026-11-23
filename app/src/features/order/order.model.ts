@@ -22,12 +22,19 @@ const OrderSchema = new Schema(
         created_at: { type: Date, default: Date.now },
         utm: { type: String, default: null },
         msg: { type: String, default: null },
-        // TODO: switch to refs (users / groups) when those features are built
-        manager: { type: String, default: null },
-        group: { type: String, default: null }
+        // the dump has no manager / group data, so both are refs from the start
+        manager: { type: Schema.Types.ObjectId, ref: "users", default: null },
+        group: { type: Schema.Types.ObjectId, ref: "groups", default: null }
     },
     // the collection comes from the dump, keep unknown fields instead of dropping them
     { versionKey: false, strict: false, collection: "orders" }
 );
+
+// default sort, "My" filter and the exact-match filters
+OrderSchema.index({ created_at: -1 });
+OrderSchema.index({ manager: 1, id: -1 });
+OrderSchema.index({ group: 1 });
+OrderSchema.index({ status: 1 });
+OrderSchema.index({ course: 1 });
 
 export const OrderModel = model<IOrder>("orders", OrderSchema);
