@@ -49,3 +49,8 @@ export interface Order {
     manager: { _id: string; name: string; surname: string } | null;
     group: { _id: string; name: string } | null;
 }
+
+export interface Group {
+    _id: string;
+    name: string;
+}

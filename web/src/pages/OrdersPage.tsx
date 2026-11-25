@@ -1,9 +1,11 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router";
-import { toQuery, useApi } from "../api";
-import type { Order, Paginated } from "../types";
+import { downloadFile, toQuery, useAction, useApi } from "../api";
+import { FILTER_KEYS, type FilterKey, type Filters } from "../constants";
+import type { Group, Order, Paginated } from "../types";
 import { Alert, Loading } from "../components/ui";
 import { Paginator } from "../components/Paginator";
+import { FilterPanel } from "../components/FilterPanel";
 
 const COLUMNS: (keyof Order)[] = [
     "id",
@@ -33,13 +35,22 @@ const formatCell = (order: Order, column: keyof Order) => {
     return String(value);
 };
 
-// table + paginator + ?page + ?order. TODO: filters, expandable rows, comments, edit modal, excel
+// filter panel + table + paginator; page, order and every filter live in the URL.
+// TODO: expandable rows, comments, edit modal
 export function OrdersPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const page = Math.max(1, Math.floor(Number(searchParams.get("page"))) || 1);
     const order = searchParams.get("order") ?? "-id";
 
-    const { data, error, loading } = useApi<Paginated<Order>>(`/orders${toQuery({ page, order })}`);
+    const filters = useMemo(
+        () => Object.fromEntries(FILTER_KEYS.map((key) => [key, searchParams.get(key) ?? ""])) as Filters,
+        [searchParams]
+    );
+    const filterQuery = toQuery({ order, ...filters });
+
+    const { data, error, loading, reload } = useApi<Paginated<Order>>(`/orders${toQuery({ page, order, ...filters })}`);
+    const { data: groups } = useApi<Group[]>("/groups");
+    const excel = useAction();
 
     // a link to a page past the end (e.g. after filtering) opens the last page instead of an empty table
     useEffect(() => {
@@ -56,6 +67,29 @@ export function OrdersPage() {
         setSearchParams(next);
     };
 
+    // a new filter starts from page 1; replace keeps typing from filling the browser history.
+    // Reads the live URL: react-router's updater sees the params of the last render, so two quick
+    // changes (a debounced input firing right after a dropdown) would otherwise drop one of them
+    const setFilter = useCallback(
+        (key: FilterKey, value: string) => {
+            const next = new URLSearchParams(window.location.search);
+            if (value) next.set(key, value);
+            else next.delete(key);
+            next.delete("page");
+            setSearchParams(next, { replace: true });
+        },
+        [setSearchParams]
+    );
+
+    // keeps the sort order, drops filters and page
+    const resetFilters = () => {
+        const next = new URLSearchParams();
+        if (searchParams.has("order")) next.set("order", order);
+        setSearchParams(next);
+    };
+
+    const exportExcel = () => excel.run(() => downloadFile(`/orders/excel${filterQuery}`, "orders.xlsx"));
+
     const toggleSort = (column: string) => {
         const next = new URLSearchParams(searchParams);
         next.set("order", order === column ? `-${column}` : column);
@@ -65,7 +99,16 @@ export function OrdersPage() {
 
     return (
         <div className="space-y-3">
-            <Alert error={error} />
+            <FilterPanel
+                filters={filters}
+                groups={groups ?? []}
+                onChange={setFilter}
+                onReset={resetFilters}
+                onRefresh={reload}
+                onExport={exportExcel}
+                exporting={excel.pending}
+            />
+            <Alert error={error ?? excel.error} />
             <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
                 <table className="w-full text-left text-sm">
                     <thead className="bg-green-600 text-white">
@@ -97,7 +140,11 @@ export function OrdersPage() {
                 </table>
                 {loading && <Loading />}
                 {!loading && data?.data.length === 0 && (
-                    <p className="py-8 text-center text-slate-400">No orders. Did you restore the dump?</p>
+                    <p className="py-8 text-center text-slate-400">
+                        {Object.values(filters).some(Boolean)
+                            ? "No orders match the filters."
+                            : "No orders. Did you restore the dump?"}
+                    </p>
                 )}
             </div>
 

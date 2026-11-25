@@ -19,7 +19,8 @@ const httpServer = createServer(app);
 app.set("trust proxy", envData.TRUST_PROXY);
 
 app.use(helmet());
-app.use(cors({ origin: envData.FRONTEND_URL }));
+// Content-Disposition carries the Excel file name
+app.use(cors({ origin: envData.FRONTEND_URL, exposedHeaders: ["Content-Disposition"] }));
 app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -32,6 +33,13 @@ app.use((req: Request, res: Response) => {
 // express recognizes error handlers by their 4 arguments, so next has to stay
 // eslint-disable-next-line no-unused-vars
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+    // a streamed response (Excel export) failed halfway: too late for a JSON error, just drop the connection
+    if (res.headersSent) {
+        console.error(`${req.method} ${req.originalUrl}`, err);
+        res.destroy();
+        return;
+    }
+
     let status: number = STATUS_CODES.internal_server_error;
     let message = "Something went wrong";
 

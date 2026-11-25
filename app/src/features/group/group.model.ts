@@ -2,7 +2,7 @@ import { model, Schema } from "mongoose";
 
 import { IGroup } from "./group.interface";
 
-// orders reference groups by id; list / create endpoints come on day 4
+// orders reference groups by id; GET /groups lists them, POST /groups adds one
 const GroupSchema = new Schema(
     {
         name: { type: String, required: true, trim: true }

@@ -25,7 +25,7 @@ Status and remaining work, compared against the spec (`TZ-CRM-School.pdf`). One 
 ## Missing
 - Cloud MongoDB cluster (spec requires it; only local Docker DB now)
 - Orders dump not imported (`dumps/` is empty)
-- Filters, Excel export, expandable row, comments, taking an order into work, edit form, groups, admin panel, statistics, activation / password recovery, API docs, Postman collection
+- Expandable row, comments, taking an order into work, edit form, groups, admin panel, statistics, activation / password recovery, API docs, Postman collection
 
 ## Day-by-day plan
 
@@ -44,8 +44,18 @@ Status and remaining work, compared against the spec (`TZ-CRM-School.pdf`). One 
   - [x] `orderService.buildFilter` is shared, ready for the Excel export (day 4)
   - [x] Frontend table shows manager surname / group name
   - [ ] Test against a real database (blocked on Docker / Atlas)
-- [ ] **Day 3 — Frontend filter panel.** Debounced text inputs, dropdowns, date pickers, all synced to the URL. My checkbox, reset button, refresh button.
-- [ ] **Day 4 — Groups and Excel.** List groups, add group with a unique name. Excel export respecting current filters; authenticated download button.
+- [x] **Day 3 — Frontend filter panel.** Debounced text inputs, dropdowns, date pickers, all synced to the URL. My checkbox, reset button, refresh button.
+  - [x] `FilterPanel`: Name / Surname / Email / Phone / Age debounced (500 ms); Course, Course format, Course type, Status, Group dropdowns; Start / End date pickers (each limits the other)
+  - [x] Every filter lives in the URL (`?name=…&status=…&my=true`); a change resets `page` and replaces the history entry; back button / Reset update the inputs
+  - [x] My checkbox, Reset (keeps the sort order), Refresh (reloads the current page)
+  - [x] Fixed: two quick filter changes no longer drop one of them (the URL is read live, not from the last render)
+  - [x] Checked in the browser against a mock API; not yet against a real database
+- [x] **Day 4 — Groups and Excel.** List groups, add group with a unique name. Excel export respecting current filters; authenticated download button.
+  - [x] `GET /groups` (sorted by name), `POST /groups { name }` → 201, a duplicate (any case) → 409
+  - [x] `GET /orders/excel`: same filters and sort as `GET /orders`, all matching rows, streamed with exceljs (table columns + utm + msg)
+  - [x] Excel button downloads with the Bearer token (refreshes it on 401) and keeps the server's file name
+  - [x] Group filter dropdown is filled from `GET /groups`; the ADD GROUP button comes with the edit form (day 7)
+  - [x] Excel writer checked offline with sample orders; not yet against a real database
 - [ ] **Day 5 — Backend editing rules (§6–7).** Comments (author, date, text). Shared ownership check: only the assigned manager, or anyone if unassigned, may change an order. A comment assigns the manager and sets status to In work if it was null / New. Edit endpoint with validation; status New frees the order.
 - [ ] **Day 6 — Frontend expanded row.** Click an order to show Message, UTM, comment history and a comment form; form disabled for others' orders; table refreshes after a comment.
 - [ ] **Day 7 — Edit form (§7).** Modal with all 12 optional fields, group dropdown with ADD GROUP, validation, Close / Submit, error messages.

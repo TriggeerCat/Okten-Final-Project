@@ -61,7 +61,8 @@ interface RequestOptions {
     body?: unknown;
 }
 
-export async function api<T>(path: string, options: RequestOptions = {}, retry = true): Promise<T> {
+// fetch with the access token; on 401 refreshes the tokens once and repeats the request
+async function authFetch(path: string, options: RequestOptions = {}, retry = true): Promise<Response> {
     const tokens = tokenStorage.get();
     const response = await fetch(BASE_URL + path, {
         method: options.method ?? "GET",
@@ -73,15 +74,40 @@ export async function api<T>(path: string, options: RequestOptions = {}, retry =
     });
 
     if (response.status === 401 && tokens && retry) {
-        if (await refreshTokens()) return api<T>(path, options, false);
+        if (await refreshTokens()) return authFetch(path, options, false);
         window.dispatchEvent(new Event("auth:logout"));
     }
+    return response;
+}
 
-    if (response.status === 204) return undefined as T;
-
+const toApiError = async (response: Response) => {
     const data = await response.json().catch(() => null);
-    if (!response.ok) throw new ApiError(data?.message ?? `Request failed (${response.status})`, response.status);
-    return data as T;
+    return new ApiError(data?.message ?? `Request failed (${response.status})`, response.status);
+};
+
+export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
+    const response = await authFetch(path, options);
+    if (response.status === 204) return undefined as T;
+    if (!response.ok) throw await toApiError(response);
+    return (await response.json().catch(() => null)) as T;
+}
+
+// a plain <a href> can't send the Authorization header, so the file is fetched and saved from a blob
+export async function downloadFile(path: string, fallbackName: string) {
+    const response = await authFetch(path);
+    if (!response.ok) throw await toApiError(response);
+
+    const disposition = response.headers.get("Content-Disposition") ?? "";
+    const fileName = /filename="?([^";]+)"?/.exec(disposition)?.[1] ?? fallbackName;
+
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
 }
 
 export const toQuery = (params: Record<string, string | number | undefined | null>) => {

@@ -103,8 +103,11 @@ In Docker the API connects to the `database` container: `docker-compose.yml` ove
 | POST | `/auth/sign-out` | Bearer | Removes the current token pair |
 | GET | `/auth/me` | Bearer | Current user |
 | GET | `/orders?page=1&order=-id` | Bearer | Orders, 25 per page, sorted by `order` (`-` = DESC), with optional filters (below) |
+| GET | `/orders/excel?order=-id` | Bearer | All orders matching the same filters and sort, as an `.xlsx` file |
+| GET | `/groups` | Bearer | All groups `[{ _id, name }]`, sorted by name |
+| POST | `/groups` | Bearer | `{ name }` → new group (201); a name that exists in any letter case → 409 |
 
-`GET /orders` filters (all optional, combined with AND; an empty value such as `?name=` is ignored):
+`GET /orders` and `GET /orders/excel` filters (all optional, combined with AND; an empty value such as `?name=` is ignored):
 
 | Param | Match |
 |---|---|
@@ -120,9 +123,8 @@ In responses, `manager` is `{ _id, name, surname }` and `group` is `{ _id, name 
 
 ## TODO
 
-- [ ] Excel export (filters from section 8 are done on the backend)
 - [ ] Expandable order row, comments, take order in work (section 6)
-- [ ] Edit modal and groups (section 7)
+- [ ] Edit modal with ADD GROUP (section 7)
 - [ ] Admin panel: statistics, create manager, ban/unban (section 10)
 - [ ] Activate / recovery password links (section 11)
 - [ ] Postman collection, API docs

@@ -2,7 +2,7 @@ import { PipelineStage, QueryFilter, Types } from "mongoose";
 
 import { OrderModel } from "./order.model";
 import { IOrder, IOrderListItem } from "./order.interface";
-import { IOrderFilterQuery, IOrderListQuery } from "./order.validator";
+import { IOrderExportQuery, IOrderFilterQuery, IOrderListQuery } from "./order.validator";
 import { PAGE_SIZE, paginate } from "../api/pagination";
 import { GroupModel } from "../group/group.model";
 import { UserModel } from "../user/user.model";
@@ -49,7 +49,7 @@ const populateRefs: PipelineStage[] = [
 
 class OrderService {
     // section 8 filters as a Mongo filter. Aggregation does not cast types, so ids and dates are built here.
-    // Shared with the Excel export (day 4).
+    // Shared by the list and the Excel export.
     public async buildFilter(query: IOrderFilterQuery, userId: string): Promise<QueryFilter<IOrder>> {
         const filter: Record<string, unknown> = {};
 
@@ -87,37 +87,37 @@ class OrderService {
         return filter as QueryFilter<IOrder>;
     }
 
-    public async getList({ page, order, ...filters }: IOrderListQuery, userId: string) {
+    // ?order=field / -field; _id is a tie breaker that keeps pages stable when the field has duplicates
+    private buildSortStages(order: string): PipelineStage[] {
         const field = order.replace(/^-/, "");
         const direction = order.startsWith("-") ? -1 : 1;
-        const filter = await this.buildFilter(filters, userId);
 
-        const sortStages: PipelineStage[] = [];
         const refSort = REF_SORT[field as keyof typeof REF_SORT];
-        if (refSort) {
-            sortStages.push(
-                {
-                    $lookup: {
-                        from: refSort.from(),
-                        localField: field,
-                        foreignField: "_id",
-                        pipeline: [{ $project: { [refSort.field]: 1 } }],
-                        as: "_sort"
-                    }
-                },
-                { $set: { _sort: { $first: `$_sort.${refSort.field}` } } },
-                // _id as a tie breaker keeps pages stable when the sorted field has duplicates
-                { $sort: { _sort: direction, _id: direction } },
-                { $unset: "_sort" }
-            );
-        } else {
-            sortStages.push({ $sort: { [field]: direction, _id: direction } });
-        }
+        if (!refSort) return [{ $sort: { [field]: direction, _id: direction } }];
+
+        return [
+            {
+                $lookup: {
+                    from: refSort.from(),
+                    localField: field,
+                    foreignField: "_id",
+                    pipeline: [{ $project: { [refSort.field]: 1 } }],
+                    as: "_sort"
+                }
+            },
+            { $set: { _sort: { $first: `$_sort.${refSort.field}` } } },
+            { $sort: { _sort: direction, _id: direction } },
+            { $unset: "_sort" }
+        ];
+    }
+
+    public async getList({ page, order, ...filters }: IOrderListQuery, userId: string) {
+        const filter = await this.buildFilter(filters, userId);
 
         const [data, total] = await Promise.all([
             OrderModel.aggregate<IOrderListItem>([
                 { $match: filter },
-                ...sortStages,
+                ...this.buildSortStages(order),
                 { $skip: (page - 1) * PAGE_SIZE },
                 { $limit: PAGE_SIZE },
                 ...populateRefs
@@ -126,6 +126,16 @@ class OrderService {
         ]);
 
         return paginate(data, total, page);
+    }
+
+    // every order that matches the filters, in table order, streamed so a big export does not sit in memory
+    public async getExportCursor({ order, ...filters }: IOrderExportQuery, userId: string) {
+        const filter = await this.buildFilter(filters, userId);
+        return OrderModel.aggregate<IOrderListItem>([
+            { $match: filter },
+            ...this.buildSortStages(order),
+            ...populateRefs
+        ]).cursor();
     }
 }
 
